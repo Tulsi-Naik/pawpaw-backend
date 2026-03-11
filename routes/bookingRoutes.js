@@ -5,6 +5,7 @@ const User = require("../models/User");
 const Pet = require("../models/Pet");
 const Booking = require("../models/Booking");
 const Service = require("../models/Service");
+const sendSMS = require("../utils/sendSMS")
 // Create full booking flow
 router.post("/create", protect, async (req, res) => {
   try {
@@ -78,6 +79,12 @@ router.post("/create", protect, async (req, res) => {
 
     const createdBookings = await Booking.insertMany(bookingsToCreate);
 
+    const user = await User.findById(req.user.id)
+
+await sendSMS(
+  user.phone,
+  `PawPaw 🐾 Booking confirmed for ${date}. We will assign a caregiver shortly.`
+)
     res.status(201).json({
       message: "Booking(s) created successfully",
       count: createdBookings.length

@@ -4,6 +4,7 @@ const Application = require("../models/CaregiverApplication")
 const bcrypt = require("bcryptjs")
 const upload = require("../middleware/upload")
 const sendEmail = require("../utils/sendEmail")
+const crypto = require("crypto")
 // create application
 router.post(
   "/apply",
@@ -58,6 +59,8 @@ router.put("/:id/approve", async (req, res) => {
     const app = await Application.findById(req.params.id)
 
     if (!app) return res.status(404).json({ message: "Not found" })
+      const tempPassword = crypto.randomBytes(4).toString("hex")
+const hashed = await bcrypt.hash(tempPassword, 10)
       const html = `
 <div style="font-family:Arial, sans-serif; background:#f4f6f8; padding:40px;">
   <div style="max-width:600px; margin:auto; background:white; border-radius:10px; overflow:hidden; box-shadow:0 4px 12px rgba(0,0,0,0.1);">
@@ -75,7 +78,7 @@ router.put("/:id/approve", async (req, res) => {
 
       <div style="background:#f9fafb; padding:15px; border-radius:8px; margin:20px 0;">
         <p style="margin:0;"><b>Email:</b> ${app.email}</p>
-        <p style="margin:0;"><b>Temporary Password:</b> temp123</p>
+<p style="margin:0;"><b>Temporary Password:</b> ${tempPassword}</p>
       </div>
 
       <p>Please log in and change your password.</p>
@@ -100,7 +103,7 @@ router.put("/:id/approve", async (req, res) => {
       return res.status(400).json({ message: "Already processed" })
 
     // create caregiver
-    const hashed = await bcrypt.hash("temp123", 10)
+
 
 const user = await User.create({
   name: app.name,
@@ -143,6 +146,37 @@ router.put("/:id/reject", async (req, res) => {
   try {
 
     const app = await Application.findById(req.params.id)
+    if (!app) return res.status(404).json({ message: "Not found" })
+
+    const html = `
+<div style="font-family:Arial, sans-serif; background:#f4f6f8; padding:40px;">
+  <div style="max-width:600px; margin:auto; background:white; border-radius:10px; overflow:hidden; box-shadow:0 4px 12px rgba(0,0,0,0.1);">
+
+    <div style="background:#ef4444; color:white; padding:20px; text-align:center;">
+      <h2 style="margin:0;">PawPaw 🐾</h2>
+    </div>
+
+    <div style="padding:30px;">
+      <h3 style="margin-top:0;">Application Update</h3>
+
+      <p>Hi ${app.name},</p>
+
+      <p>Thank you for applying to become a caregiver with PawPaw.</p>
+
+      <p>After reviewing your application, we regret to inform you that we are unable to proceed at this time.</p>
+
+      <p style="margin-top:20px;">
+        We appreciate your interest in PawPaw and wish you the best.
+      </p>
+    </div>
+
+    <div style="background:#f4f4f4; padding:15px; text-align:center; font-size:12px;">
+      © PawPaw
+    </div>
+
+  </div>
+</div>
+`
 
     app.status = "rejected"
 
@@ -152,6 +186,12 @@ router.put("/:id/reject", async (req, res) => {
     }
 
     await app.save()
+
+    await sendEmail(
+  app.email,
+  "Update on Your PawPaw Caregiver Application",
+  html
+)
 
     res.json(app)
 
