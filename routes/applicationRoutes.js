@@ -3,6 +3,7 @@ const router = express.Router()
 const Application = require("../models/CaregiverApplication")
 const bcrypt = require("bcryptjs")
 const upload = require("../middleware/upload")
+const sendEmail = require("../utils/sendEmail")
 // create application
 router.post(
   "/apply",
@@ -13,8 +14,7 @@ router.post(
   async (req, res) => {
     try {
 
-      console.log("BODY:", req.body)
-      console.log("FILES:", req.files)
+     
 
       const app = await Application.create({
         ...req.body,
@@ -53,10 +53,48 @@ const User = require("../models/User")
 
 router.put("/:id/approve", async (req, res) => {
   try {
+    
 
     const app = await Application.findById(req.params.id)
 
     if (!app) return res.status(404).json({ message: "Not found" })
+      const html = `
+<div style="font-family:Arial, sans-serif; background:#f4f6f8; padding:40px;">
+  <div style="max-width:600px; margin:auto; background:white; border-radius:10px; overflow:hidden; box-shadow:0 4px 12px rgba(0,0,0,0.1);">
+    
+    <div style="background:#4f46e5; color:white; padding:20px; text-align:center;">
+      <h2 style="margin:0;">PawPaw 🐾</h2>
+    </div>
+
+    <div style="padding:30px;">
+      <h3 style="margin-top:0;">Application Approved</h3>
+
+      <p>Hi ${app.name},</p>
+
+      <p>Your caregiver application has been <b>approved</b>. You can now log in to PawPaw.</p>
+
+      <div style="background:#f9fafb; padding:15px; border-radius:8px; margin:20px 0;">
+        <p style="margin:0;"><b>Email:</b> ${app.email}</p>
+        <p style="margin:0;"><b>Temporary Password:</b> temp123</p>
+      </div>
+
+      <p>Please log in and change your password.</p>
+
+      <a href="https://pawpaw-mu.vercel.app/login"
+         style="display:inline-block; background:#4f46e5; color:white; padding:12px 20px; border-radius:6px; text-decoration:none;">
+         Login to PawPaw
+      </a>
+
+      <p style="margin-top:30px;">Welcome to the PawPaw team 🐾</p>
+    </div>
+
+    <div style="background:#f4f4f4; padding:15px; text-align:center; font-size:12px;">
+      © PawPaw
+    </div>
+
+  </div>
+</div>
+`
 
     if (app.status !== "pending")
       return res.status(400).json({ message: "Already processed" })
@@ -87,6 +125,12 @@ const user = await User.create({
     }
 
     await app.save()
+
+    await sendEmail(
+  app.email,
+  "Your PawPaw Caregiver Application is Approved 🐾",
+  html
+)
 
     res.json({ message: "Application approved", user })
 
