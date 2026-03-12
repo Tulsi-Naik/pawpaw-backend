@@ -21,7 +21,7 @@ res.json(location)
 
   } catch (err) {
     console.log(err)
-    console.log(req.body)
+    // console.log(req.body)
     res.status(500).json({ message: "Location update failed" })
   }
 

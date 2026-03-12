@@ -10,6 +10,7 @@ const userRoutes = require("./routes/userRoutes");
 const applicationRoutes = require("./routes/applicationRoutes")
 const caregiverRoutes = require("./routes/caregiverRoutes");
 const locationRoutes = require("./routes/locationRoutes")
+require("./utils/reminderJob")
 const app = express();
 
 app.use(cors());

@@ -83,7 +83,7 @@ router.post("/create", protect, async (req, res) => {
 
 await sendSMS(
   user.phone,
-  `PawPaw 🐾 Booking confirmed for ${date}. We will assign a caregiver shortly.`
+  `PawPaw Booking confirmed for ${date}.`
 )
     res.status(201).json({
       message: "Booking(s) created successfully",
@@ -198,10 +198,27 @@ router.put("/:id/accept", protect, async (req, res) => {
 { returnDocument: "after" }
   );
 
-  if (!booking)
-    return res.status(400).json({ message: "Not available" });
+ if (!booking)
+  return res.status(400).json({ message: "Not available" });
 
-  res.json(booking);
+const populatedBooking = await Booking.findById(booking._id)
+  .populate({
+    path: "pet",
+    populate: { path: "owner" }
+  })
+  .populate("caregiver")
+
+const dateStr = new Date(populatedBooking.date)
+  .toLocaleDateString("en-IN", { day: "numeric", month: "short" })
+
+const timeStr = populatedBooking.timeSlot
+
+await sendSMS(
+  populatedBooking.pet.owner.phone,
+  `PawPaw: ${populatedBooking.caregiver.name} assigned for ${dateStr}, ${timeStr}.`
+)
+
+res.json(booking);
      } catch (error) {
     console.log(error);
     res.status(500).json({ message: "Error accepting bookings" });
@@ -219,6 +236,17 @@ router.put("/:id/start", protect, async (req, res) => {
       { status: "InProgress" },
       { new: true }
     )
+
+    const populatedBooking = await Booking.findById(booking._id)
+  .populate({
+    path: "pet",
+    populate: { path: "owner" }
+  })
+
+await sendSMS(
+  populatedBooking.pet.owner.phone,
+  `PawPaw: Walk for ${populatedBooking.pet.name} started.`
+)
 
     res.json(booking)
 
@@ -238,6 +266,17 @@ router.put("/:id/complete", protect, async (req, res) => {
       { status: "Completed" },
       { new: true }
     )
+
+    const populatedBooking = await Booking.findById(booking._id)
+  .populate({
+    path: "pet",
+    populate: { path: "owner" }
+  })
+
+await sendSMS(
+  populatedBooking.pet.owner.phone,
+  `PawPaw: Walk for ${populatedBooking.pet.name} completed 🐾`
+)
 
     res.json(booking)
 
