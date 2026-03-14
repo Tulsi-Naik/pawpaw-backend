@@ -76,15 +76,32 @@ router.post("/create", protect, async (req, res) => {
         }
       }
     }
+    // check for conflicts
+for (let booking of bookingsToCreate) {
+
+  const conflict = await Booking.findOne({
+    pet: booking.pet,
+    date: booking.date,
+    timeSlot: booking.timeSlot,
+    status: { $ne: "Cancelled" }
+  })
+
+  if (conflict) {
+    return res.status(400).json({
+      message: `Slot already booked for ${booking.timeSlot}`
+    })
+  }
+
+}
 
     const createdBookings = await Booking.insertMany(bookingsToCreate);
 
     const user = await User.findById(req.user.id)
 
-await sendSMS(
-  user.phone,
-  `PawPaw Booking confirmed for ${date}.`
-)
+// await sendSMS(
+//   user.phone,
+//   `PawPaw Booking confirmed for ${date}.`
+// )
     res.status(201).json({
       message: "Booking(s) created successfully",
       count: createdBookings.length
@@ -213,10 +230,10 @@ const dateStr = new Date(populatedBooking.date)
 
 const timeStr = populatedBooking.timeSlot
 
-await sendSMS(
-  populatedBooking.pet.owner.phone,
-  `PawPaw: ${populatedBooking.caregiver.name} assigned for ${dateStr}, ${timeStr}.`
-)
+// await sendSMS(
+//   populatedBooking.pet.owner.phone,
+//   `PawPaw: ${populatedBooking.caregiver.name} assigned for ${dateStr}, ${timeStr}.`
+// )
 
 res.json(booking);
      } catch (error) {
@@ -243,10 +260,10 @@ router.put("/:id/start", protect, async (req, res) => {
     populate: { path: "owner" }
   })
 
-await sendSMS(
-  populatedBooking.pet.owner.phone,
-  `PawPaw: Walk for ${populatedBooking.pet.name} started.`
-)
+// await sendSMS(
+//   populatedBooking.pet.owner.phone,
+//   `PawPaw: Walk for ${populatedBooking.pet.name} started.`
+// )
 
     res.json(booking)
 
@@ -273,10 +290,10 @@ router.put("/:id/complete", protect, async (req, res) => {
     populate: { path: "owner" }
   })
 
-await sendSMS(
-  populatedBooking.pet.owner.phone,
-  `PawPaw: Walk for ${populatedBooking.pet.name} completed 🐾`
-)
+// await sendSMS(
+//   populatedBooking.pet.owner.phone,
+//   `PawPaw: Walk for ${populatedBooking.pet.name} completed 🐾`
+// )
 
     res.json(booking)
 

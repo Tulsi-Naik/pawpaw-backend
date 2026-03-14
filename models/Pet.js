@@ -8,6 +8,11 @@ const petSchema = new mongoose.Schema({
 
   breed: String,
 
+  size: {
+  type: String,
+  enum: ["Small", "Medium", "Large"]
+},
+
   dateOfBirth: Date,
 
   profilePhoto: String,
