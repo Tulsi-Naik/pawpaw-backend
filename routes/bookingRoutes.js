@@ -76,21 +76,42 @@ router.post("/create", protect, async (req, res) => {
         }
       }
     }
-    // check for conflicts
+// check for conflicts
 for (let booking of bookingsToCreate) {
 
-  const conflict = await Booking.findOne({
+  const existingBookings = await Booking.find({
     pet: booking.pet,
     date: booking.date,
-    timeSlot: booking.timeSlot,
     status: { $ne: "Cancelled" }
   })
 
-  if (conflict) {
+
+  const convertToMinutes = (time) => {
+  const [t, period] = time.split(" ")
+  let [hours, minutes] = t.split(":").map(Number)
+
+  if (period === "PM" && hours !== 12) hours += 12
+  if (period === "AM" && hours === 12) hours = 0
+
+  return hours * 60 + minutes
+}
+
+const start = convertToMinutes(booking.timeSlot)
+const end = start + booking.duration
+
+for (let existing of existingBookings) {
+
+  const existingStart = convertToMinutes(existing.timeSlot)
+  const existingEnd = existingStart + existing.duration
+
+  const overlap = start < existingEnd && end > existingStart
+
+  if (overlap) {
     return res.status(400).json({
-      message: `Slot already booked for ${booking.timeSlot}`
+      message: "Selected time overlaps with another walk"
     })
   }
+}
 
 }
 
@@ -206,14 +227,18 @@ router.put("/:id/accept", protect, async (req, res) => {
   if (req.user.role !== "caregiver")
     return res.status(403).json({ message: "Access denied" });
 
-  const booking = await Booking.findOneAndUpdate(
-    { _id: req.params.id, status: "Pending" },
-    {
-      status: "Accepted",
-      caregiver: req.user.id
-    },
-{ returnDocument: "after" }
-  );
+const booking = await Booking.findOneAndUpdate(
+  {
+    _id: req.params.id,
+    status: "Pending",
+    caregiver: { $exists: false }
+  },
+  {
+    status: "Accepted",
+    caregiver: req.user.id
+  },
+  { new: true }
+);
 
  if (!booking)
   return res.status(400).json({ message: "Not available" });

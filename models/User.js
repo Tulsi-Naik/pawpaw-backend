@@ -52,6 +52,10 @@ availability: {
   enum: ["morning","afternoon","evening"],
   default: []
 },
+mustChangePassword: {
+  type: Boolean,
+  default: false
+},
 
 }, { timestamps: true });
 

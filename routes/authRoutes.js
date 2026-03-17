@@ -65,7 +65,8 @@ res.json({
     bio: user.bio,
     serviceRadius: user.serviceRadius,
     dogSizesHandled: user.dogSizesHandled,
-    onboardingStatus: user.onboardingStatus
+    onboardingStatus: user.onboardingStatus,
+    mustChangePassword: user.mustChangePassword
   }
 });
 
@@ -73,5 +74,25 @@ res.json({
     res.status(500).json({ message: "Login failed" });
   }
 });
+
+// Set new password (first login)
+router.put("/set-password", async (req, res) => {
+  try {
+
+    const { userId, newPassword } = req.body
+
+    const hashed = await bcrypt.hash(newPassword, 10)
+
+    await User.findByIdAndUpdate(userId, {
+      password: hashed,
+      mustChangePassword: false
+    })
+
+    res.json({ message: "Password updated successfully" })
+
+  } catch (error) {
+    res.status(500).json({ message: "Error updating password" })
+  }
+})
 
 module.exports = router;

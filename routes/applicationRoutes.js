@@ -117,7 +117,8 @@ const user = await User.create({
   experienceYears: app.experienceYears,
   experienceDetails: app.experienceDetails,
   password: hashed,
-  onboardingStatus: "pending_setup"
+  onboardingStatus: "pending_setup",
+   mustChangePassword: true
 })
 
   
