@@ -231,7 +231,7 @@ const booking = await Booking.findOneAndUpdate(
   {
     _id: req.params.id,
     status: "Pending",
-    caregiver: { $exists: false }
+    caregiver: null
   },
   {
     status: "Accepted",
