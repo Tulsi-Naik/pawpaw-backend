@@ -57,6 +57,9 @@ mustChangePassword: {
   default: false
 },
 
+resetToken: String,
+resetTokenExpiry: Date,
+
 }, { timestamps: true });
 
 module.exports = mongoose.model("User", userSchema);
