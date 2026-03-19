@@ -1,17 +1,34 @@
-// routes/paymentRoutes.js
 const express = require("express");
 const router = express.Router();
 const razorpay = require("../utils/razorpay");
 const Booking = require("../models/Booking");
+const protect = require("../middleware/authMiddleware"); // ✅ add this
+const crypto = require("crypto");
 
-router.post("/create-order/:bookingId", async (req, res) => {
+// ✅ CREATE ORDER
+router.post("/create-order/:bookingId", protect, async (req, res) => {
   try {
     const booking = await Booking.findById(req.params.bookingId);
 
-    if (!booking) return res.status(404).json({ msg: "Booking not found" });
+    if (!booking) {
+      return res.status(404).json({ msg: "Booking not found" });
+    }
+
+    // 🛑 DEBUG (KEEP THIS TEMP)
+    console.log("BOOKING ID:", req.params.bookingId);
+    console.log("FINAL PRICE:", booking.finalPrice);
+
+    // 🛑 safety check
+    if (!booking.finalPrice || booking.finalPrice <= 0) {
+      return res.status(400).json({ msg: "Invalid booking price" });
+    }
+
+    if (booking.paymentStatus === "Paid") {
+      return res.status(400).json({ msg: "Already paid" });
+    }
 
     // 💡 calculate split
-const total = booking.finalPrice;
+    const total = booking.finalPrice;
     const platformFee = Math.round(total * 0.2);
     const caregiverEarning = total - platformFee;
 
@@ -23,24 +40,25 @@ const total = booking.finalPrice;
 
     const order = await razorpay.orders.create(options);
 
-    // save in DB
+    // ✅ save in DB
     booking.totalAmount = total;
     booking.platformFee = platformFee;
     booking.caregiverEarning = caregiverEarning;
-    booking.paymentStatus = "pending";
+    booking.paymentStatus = "Pending"; // ✅ FIXED
     booking.razorpayOrderId = order.id;
 
     await booking.save();
 
     res.json(order);
+
   } catch (err) {
+    console.log("CREATE ORDER ERROR:", err);
     res.status(500).json({ msg: err.message });
   }
 });
 
-const crypto = require("crypto");
-
-router.post("/verify", async (req, res) => {
+// ✅ VERIFY PAYMENT
+router.post("/verify", protect, async (req, res) => {
   try {
     const {
       razorpay_order_id,
@@ -59,16 +77,23 @@ router.post("/verify", async (req, res) => {
       return res.status(400).json({ msg: "Payment verification failed" });
     }
 
-    // update booking
-    const booking = await Booking.findOne({ razorpayOrderId: razorpay_order_id });
+    const booking = await Booking.findOne({
+      razorpayOrderId: razorpay_order_id,
+    });
 
-    booking.paymentStatus = "paid";
+    if (!booking) {
+      return res.status(404).json({ msg: "Booking not found" });
+    }
+
+    booking.paymentStatus = "Paid";
     booking.razorpayPaymentId = razorpay_payment_id;
 
     await booking.save();
 
     res.json({ msg: "Payment successful" });
+
   } catch (err) {
+    console.log("VERIFY ERROR:", err);
     res.status(500).json({ msg: err.message });
   }
 });

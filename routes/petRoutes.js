@@ -2,10 +2,11 @@ const express = require("express");
 const router = express.Router();
 const protect = require("../middleware/authMiddleware");
 const Pet = require("../models/Pet");
+const upload = require("../middleware/upload")
 
 // Add new pet
-router.post("/add", protect, async (req, res) => {
-  try {
+router.post("/add", protect, upload.single("profilePhoto"), async (req, res) => {
+    try {
 const {
   name,
   type,
@@ -36,8 +37,9 @@ const {
   kidFriendly,
   allergies,
   medicalNotes,
-  fears,
-  favoriteTreat,
+fears: fears ? JSON.parse(fears) : [],
+    favoriteTreat,
+  profilePhoto: req.file?.path,
   owner: req.user.id
 });
     res.status(201).json({
@@ -59,13 +61,22 @@ router.get("/my", protect, async (req, res) => {
     res.status(500).json({ message: "Error fetching pets" });
   }
 });
-router.put("/:id", protect, async (req, res) => {
+router.put("/:id", protect, upload.single("profilePhoto"), async (req, res) => {
   try {
+
+    const updateData = {
+      ...req.body,
+      fears: req.body.fears ? JSON.parse(req.body.fears) : []
+    }
+
+    if (req.file) {
+      updateData.profilePhoto = req.file.path
+    }
 
     const updatedPet = await Pet.findOneAndUpdate(
       { _id: req.params.id, owner: req.user.id },
-      req.body,
-{ returnDocument: "after" }
+      updateData,
+      { returnDocument: "after" }
     )
 
     res.json(updatedPet)

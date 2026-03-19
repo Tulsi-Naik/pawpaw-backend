@@ -275,7 +275,12 @@ router.put("/:id/start", protect, async (req, res) => {
       return res.status(403).json({ message: "Access denied" });
 
     const booking = await Booking.findOneAndUpdate(
-      { _id: req.params.id, caregiver: req.user.id, status: "Accepted" },
+{ 
+  _id: req.params.id, 
+  caregiver: req.user.id, 
+  status: "Accepted",
+  paymentStatus: "Paid"
+},
       { status: "InProgress" },
       { new: true }
     )
