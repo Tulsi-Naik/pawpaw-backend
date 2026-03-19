@@ -60,6 +60,11 @@ mustChangePassword: {
 resetToken: String,
 resetTokenExpiry: Date,
 
+upiId: {
+  type: String,
+  default: null
+},
+
 }, { timestamps: true });
 
 module.exports = mongoose.model("User", userSchema);

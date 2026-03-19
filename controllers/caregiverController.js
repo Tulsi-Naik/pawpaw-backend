@@ -9,7 +9,8 @@ exports.setupProfile = async (req, res) => {
       dogSizesHandled,
       availability,
       phone,
-      city
+      city,
+      upiId
     } = req.body
 
     const updateData = {
@@ -19,6 +20,7 @@ exports.setupProfile = async (req, res) => {
       availability: JSON.parse(availability || "[]"),
       phone,
       city,
+      upiId,
       onboardingStatus: "active"
     }
 

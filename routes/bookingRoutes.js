@@ -259,7 +259,8 @@ const timeStr = populatedBooking.timeSlot
 //   populatedBooking.pet.owner.phone,
 //   `PawPaw: ${populatedBooking.caregiver.name} assigned for ${dateStr}, ${timeStr}.`
 // )
-
+booking.paymentStatus = "Unpaid";
+await booking.save();
 res.json(booking);
      } catch (error) {
     console.log(error);
@@ -370,5 +371,21 @@ router.get("/", async (req,res)=>{
     res.status(500).json({message:"Error fetching bookings"})
   }
 })
+router.get("/caregiver", protect, async (req, res) => {
+  try {
+    if (req.user.role !== "caregiver") {
+      return res.status(403).json({ message: "Access denied" });
+    }
+
+    const bookings = await Booking.find({ caregiver: req.user.id })
+      .populate("pet")
+      .sort({ date: -1 });
+
+    res.json(bookings);
+
+  } catch (err) {
+    res.status(500).json({ message: "Error fetching caregiver bookings" });
+  }
+});
 
 module.exports = router;

@@ -57,10 +57,16 @@ status: {
 },
 
   paymentStatus: {
-    type: String,
-    enum: ["Unpaid", "Paid"],
-    default: "Unpaid"
-  }
+  type: String,
+  enum: ["Unpaid", "Pending", "Paid"],
+  default: "Unpaid"
+},
+  totalAmount: Number,        // what owner pays
+platformFee: Number,        // 20%
+caregiverEarning: Number,   // 80%
+
+razorpayOrderId: String,
+razorpayPaymentId: String,
 
 }, { timestamps: true });
 bookingSchema.index({ date: 1, timeSlot: 1 });
