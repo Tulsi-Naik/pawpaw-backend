@@ -2,6 +2,11 @@ const express = require("express");
 const router = express.Router();
 const Booking = require("../models/Booking");
 
+const protect = require("../middleware/authMiddleware");
+const { getCaregivers } = require("../controllers/adminController");
+const { toggleCaregiverStatus } = require("../controllers/adminController");
+
+// Revenue
 router.get("/revenue", async (req, res) => {
   try {
     const bookings = await Booking.find({ paymentStatus: "Paid" });
@@ -22,4 +27,7 @@ router.get("/revenue", async (req, res) => {
   }
 });
 
+//  NEW
+router.get("/caregivers", protect, getCaregivers);
+router.patch("/caregivers/:id/status", protect, toggleCaregiverStatus);
 module.exports = router;

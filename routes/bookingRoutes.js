@@ -403,7 +403,19 @@ res.json(filtered);
 router.get("/", async (req,res)=>{
   try{
     const bookings = await Booking.find()
+      .populate({
+        path: "pet",
+        populate: {
+          path: "owner",
+          select: "name city"
+        }
+      })
+      .populate("caregiver", "name")
+      .populate("service", "category")
+      .sort({ date: -1 });
+
     res.json(bookings)
+
   }catch(err){
     res.status(500).json({message:"Error fetching bookings"})
   }

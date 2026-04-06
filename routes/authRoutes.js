@@ -11,7 +11,7 @@ const router = express.Router();
 // Register
 router.post("/register", async (req, res) => {
   try {
-    const { name, email, password } = req.body;
+    const { name, email, password, intent } = req.body;
 
     const existingUser = await User.findOne({ email });
     if (existingUser) {
@@ -20,10 +20,12 @@ router.post("/register", async (req, res) => {
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    const user = await User.create({
+    const newUser = await User.create({
       name,
       email,
-      password: hashedPassword
+      password: hashedPassword,
+      intent: intent || "owner",
+      hasDog: intent === "owner" || intent === "both"
     });
 
     res.status(201).json({ message: "User registered successfully" });
