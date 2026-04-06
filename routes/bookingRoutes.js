@@ -189,6 +189,8 @@ const caregiver = await User.findById(req.user.id);
 if (caregiver.onboardingStatus !== "active") {
   return res.json([])
 }
+const scope = req.query.scope || "city"
+
 const bookings = await Booking.find({ status: "Pending" })
   .populate({
     path: "pet",
@@ -210,12 +212,42 @@ const filtered = bookings.filter(b => {
   else if (slot.includes("pm") && slot.includes("12")) period = "afternoon"
   else if (slot.includes("pm")) period = "evening"
 
-  return caregiver.skills.includes(b.service.category) &&
-         caregiver.availability.includes(period)
+  const skillMatch =
+    caregiver.skills.includes(b.service.category)
+
+  const availabilityMatch =
+    caregiver.availability.includes(period)
+
+const sameCity = b.pet?.owner?.city === caregiver.city
+
+const radius = caregiver.serviceRadius || 0
+
+let allowedCities = [caregiver.city]
+
+// expand based on radius
+if (radius >= 50) {
+  allowedCities.push("Pimpri-Chinchwad")
+}
+
+if (radius >= 150) {
+  allowedCities.push("Mumbai", "Nashik")
+}
+
+if (radius >= 300) {
+  allowedCities.push("Nagpur")
+}
+
+const withinRadius = allowedCities.includes(b.pet?.owner?.city)
+
+const cityMatch =
+  scope === "all"
+    ? true
+    : withinRadius
+
+  return skillMatch && availabilityMatch && cityMatch
 })
 
-
-res.json(filtered);
+res.json(filtered)
     } catch (error) {
     console.log(error);
     res.status(500).json({ message: "Error opening bookings" });
