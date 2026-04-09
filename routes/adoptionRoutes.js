@@ -66,7 +66,9 @@ router.get("/", protect, async (req, res) => {
 router.post("/request", protect, async (req, res) => {
   try {
     const { listingId, message } = req.body;
-
+    //9 april msg issue logs
+console.log("BODY:", req.body)
+console.log("MESSAGE:", message)
     const listing = await AdoptionListing.findById(listingId);
     const user = await require("../models/User").findById(req.user.id)
 
@@ -97,6 +99,7 @@ if (!user.phone || !user.city || !user.bio) {
       requester: req.user.id,
       message
     });
+    console.log("SAVED REQUEST:", request)
 
     res.status(201).json(request);
 
@@ -113,17 +116,21 @@ router.get("/my-listings", protect, async (req, res) => {
       .populate("pet")
       .sort({ createdAt: -1 });
 
-    const result = [];
+    const result = await Promise.all(
+      listings.map(async (listing) => {
+        const requests = await AdoptionRequest.find({
+          listing: listing._id
+        }).populate({
+          path: "requester",
+          select: "name phone city bio profilePhoto"
+        });
 
-    for (let listing of listings) {
-      const requests = await AdoptionRequest.find({ listing: listing._id })
-        .populate("requester", "name phone city bio");
-
-      result.push({
-        listing,
-        requests
-      });
-    }
+        return {
+          listing,
+          requests
+        };
+      })
+    );
 
     res.json(result);
 
@@ -131,7 +138,6 @@ router.get("/my-listings", protect, async (req, res) => {
     res.status(500).json({ message: "Error fetching listings" });
   }
 });
-
 
 // 🔹 5. MY REQUESTS
 router.get("/my-requests", protect, async (req, res) => {
