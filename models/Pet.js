@@ -22,7 +22,10 @@ const petSchema = new mongoose.Schema({
     ref: "User",
     required: true
   },
-
+// Add to petSchema
+lastAdoptionDate: Date,
+previousOwners: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
+transferStatus: { type: String, enum: ["Permanent", "Trial"], default: "Permanent" },
   // personality
 
   energyLevel: { type: Number, min: 1, max: 5 },
