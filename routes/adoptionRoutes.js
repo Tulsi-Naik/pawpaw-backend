@@ -142,16 +142,20 @@ router.get("/my-listings", protect, async (req, res) => {
 // 🔹 5. MY REQUESTS
 router.get("/my-requests", protect, async (req, res) => {
   try {
-    const requests = await AdoptionRequest.find({
-      requester: req.user.id
-    })
-      .populate({
-        path: "listing",
-        populate: {
-          path: "pet"
-        }
-      })
-      .sort({ createdAt: -1 });
+const requests = await AdoptionRequest.find({
+  requester: req.user.id
+})
+  .populate({
+    path: "listing",
+    populate: {
+      path: "pet"
+    }
+  })
+  .populate({
+    path: "requester",
+    select: "name bio"
+  })
+  .sort({ createdAt: -1 });
 
     res.json(requests);
 
