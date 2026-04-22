@@ -58,7 +58,7 @@ status: {
 
   paymentStatus: {
   type: String,
-  enum: ["Unpaid", "Pending", "Paid"],
+  enum: ["Unpaid", "Pending", "Paid", "Refunded"],
   default: "Unpaid"
 },
   totalAmount: Number,        // what owner pays

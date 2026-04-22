@@ -163,8 +163,7 @@ router.get("/my-requests", protect, async (req, res) => {
   }
 });
 
-
-// 🔹 6. APPROVE / REJECT (SAFE VERSION)
+// 🔹 6. APPROVE / REJECT (STAGE 1: OWNER APPROVAL)
 router.put("/request/:id", protect, async (req, res) => {
   const session = await mongoose.startSession();
   session.startTransaction();
@@ -172,7 +171,6 @@ router.put("/request/:id", protect, async (req, res) => {
   try {
     const { action } = req.body;
 
-    // ✅ VALIDATION
     if (!["approve", "reject"].includes(action)) {
       return res.status(400).json({ message: "Invalid action" });
     }
@@ -180,7 +178,7 @@ router.put("/request/:id", protect, async (req, res) => {
     const request = await AdoptionRequest.findById(req.params.id).session(session);
     if (!request) {
       await session.abortTransaction();
-      return res.status(404).json({ message: "Not found" });
+      return res.status(404).json({ message: "Request not found" });
     }
 
     const listing = await AdoptionListing.findById(request.listing).session(session);
@@ -191,24 +189,17 @@ router.put("/request/:id", protect, async (req, res) => {
 
     if (listing.status !== "available") {
       await session.abortTransaction();
-      return res.status(400).json({ message: "Already processed" });
+      return res.status(400).json({ message: "Listing is no longer available" });
     }
 
-    // 🔥 APPROVE
     if (action === "approve") {
-
-      await Pet.findByIdAndUpdate(
-        listing.pet,
-        { owner: request.requester },
-        { session }
-      );
-
-      listing.status = "adopted";
-      await listing.save({ session });
-
+      // Set request to approved. 
+      // NOTE: We do NOT change Pet.owner or Cancel Bookings here anymore.
+      // That happens in the 'finalize' route called by the adopter.
       request.status = "approved";
       await request.save({ session });
 
+      // Reject all other pending requests for this dog immediately
       await AdoptionRequest.updateMany(
         { listing: listing._id, _id: { $ne: request._id } },
         { status: "rejected" },
@@ -218,60 +209,143 @@ router.put("/request/:id", protect, async (req, res) => {
       await session.commitTransaction();
       session.endSession();
 
-      // 🔥 NON-BLOCKING NOTIFICATIONS
+      // Notifications
       const approvedUser = await User.findById(request.requester);
-
-      try {
-        await sendEmail(
-          approvedUser.email,
-          "Adoption Approved 🐶",
-          `<p>Congrats! Your adoption request has been approved.</p>`
-        );
-      } catch (e) {
-        console.log("Email failed:", e.message);
-      }
-
       try {
         if (approvedUser.phone) {
           await sendSMS(
             approvedUser.phone,
-            "Your adoption request has been approved 🐶"
+            `PawPaw: Your request for ${listing.pet.name} was approved! Please meet the owner and click 'Confirm Received' in the app to finish.`
           );
         }
       } catch (e) {
-        console.log("SMS failed:", e.message);
+        console.log("Notification failed:", e.message);
       }
 
-      return res.json({ message: "Adoption approved" });
+      return res.json({ message: "Request approved. Waiting for adopter to confirm receipt." });
     }
 
-    // 🔥 REJECT
     if (action === "reject") {
       request.status = "rejected";
       await request.save({ session });
 
       await session.commitTransaction();
       session.endSession();
-
-      const rejectedUser = await User.findById(request.requester);
-
-      try {
-        await sendEmail(
-          rejectedUser.email,
-          "Adoption Request Update",
-          `<p>Your request was not approved.</p>`
-        );
-      } catch (e) {
-        console.log("Email failed:", e.message);
-      }
-
       return res.json({ message: "Request rejected" });
     }
 
   } catch (err) {
     await session.abortTransaction();
     session.endSession();
-    res.status(500).json({ message: "Error updating request" });
+    console.error(err);
+    res.status(500).json({ message: "Error processing approval" });
+  }
+});
+
+// 🔹 7. FINALIZE HANDOVER (Called by Adopter)
+router.put("/finalize/:id", protect, async (req, res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    const request = await AdoptionRequest.findById(req.params.id)
+      .populate("listing")
+      .session(session);
+
+    if (!request) {
+      await session.abortTransaction();
+      return res.status(404).json({ message: "Request not found" });
+    }
+
+    // Security: Only the adopter (requester) can confirm they received the dog
+    if (request.requester.toString() !== req.user.id) {
+      await session.abortTransaction();
+      return res.status(403).json({ message: "Only the adopter can finalize handover" });
+    }
+
+    if (request.status !== "approved") {
+      await session.abortTransaction();
+      return res.status(400).json({ message: "Request must be approved by owner first" });
+    }
+
+    // 1. Officially change the Pet's owner to the Adopter
+    await Pet.findByIdAndUpdate(
+      request.listing.pet,
+      { owner: req.user.id },
+      { session }
+    );
+
+    // 2. Mark the request as completed
+    request.status = "completed";
+    await request.save({ session });
+
+    // 3. Update listing status to adopted
+    await AdoptionListing.findByIdAndUpdate(
+      request.listing._id,
+      { status: "adopted" },
+      { session }
+    );
+
+    // 4. FIND FUTURE PAID BOOKINGS FOR REFUND
+    const Booking = require("../models/Booking");
+    const razorpay = require("../utils/razorpay"); // Ensure this path is correct
+
+    const futurePaidBookings = await Booking.find({
+      pet: request.listing.pet,
+      paymentStatus: "Paid",
+      date: { $gte: new Date() }
+    }).session(session);
+
+    // 5. TRIGGER RAZORPAY REFUNDS
+    for (let booking of futurePaidBookings) {
+      try {
+        if (booking.razorpayPaymentId) {
+          await razorpay.payments.refund(booking.razorpayPaymentId, {
+            amount: booking.totalAmount * 100, // Amount in paise
+            notes: { reason: "Automated refund due to pet adoption handover" }
+          });
+
+          booking.paymentStatus = "Refunded";
+        }
+      } catch (refundErr) {
+        // We log the error but don't stop the adoption if a refund fails 
+        // (can be handled manually in Razorpay dashboard if needed)
+        console.error(`Refund failed for booking ${booking._id}:`, refundErr.message);
+      }
+      
+      // Mark as cancelled regardless of refund success to stop the caregiver
+      booking.status = "Cancelled";
+      booking.cancellationReason = "Dog adopted - Ownership transferred";
+      await booking.save({ session });
+    }
+
+    // 6. ALSO CANCEL PENDING/UNPAID FUTURE BOOKINGS
+    await Booking.updateMany(
+      {
+        pet: request.listing.pet,
+        paymentStatus: { $ne: "Paid" },
+        status: { $in: ["Pending", "Accepted"] },
+        date: { $gte: new Date() }
+      },
+      { 
+        status: "Cancelled",
+        cancellationReason: "Dog adopted - Ownership transferred" 
+      },
+      { session }
+    );
+
+    await session.commitTransaction();
+    session.endSession();
+
+    res.json({ 
+      message: "Handover finalized! The dog is now yours, and future bookings have been refunded." 
+    });
+
+  } catch (err) {
+    await session.abortTransaction();
+    session.endSession();
+    console.error(err);
+    res.status(500).json({ message: "Error finalizing handover" });
   }
 });
 

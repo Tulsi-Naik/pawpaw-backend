@@ -98,4 +98,31 @@ router.post("/verify", protect, async (req, res) => {
   }
 });
 
+// ✅ REFUND FOR ADOPTION CANCELLATIONS
+router.post("/refund/:bookingId", protect, async (req, res) => {
+  try {
+    const booking = await Booking.findById(req.params.bookingId);
+
+    if (!booking) return res.status(404).json({ msg: "Booking not found" });
+    if (booking.paymentStatus !== "Paid") return res.status(400).json({ msg: "Nothing to refund" });
+
+    // 💡 Razorpay Refund API
+    const refund = await razorpay.payments.refund(booking.razorpayPaymentId, {
+      amount: booking.totalAmount * 100, // Full refund in paise
+      notes: { reason: "Pet Adopted - Automated Refund" }
+    });
+
+    booking.paymentStatus = "Refunded";
+    booking.status = "Cancelled";
+    booking.cancellationReason = "Pet Adopted";
+    
+    await booking.save();
+
+    res.json({ msg: "Refund processed successfully", refund });
+  } catch (err) {
+    console.log("REFUND ERROR:", err);
+    res.status(500).json({ msg: err.message });
+  }
+});
+
 module.exports = router;

@@ -9,17 +9,27 @@ const { toggleCaregiverStatus } = require("../controllers/adminController");
 // Revenue
 router.get("/revenue", async (req, res) => {
   try {
-    const bookings = await Booking.find({ paymentStatus: "Paid" });
+    // 🔹 Fetch both Paid and Refunded bookings to show the full financial picture
+    const allFinancialBookings = await Booking.find({ 
+      paymentStatus: { $in: ["Paid", "Refunded"] } 
+    });
 
-    const totalRevenue = bookings.reduce((sum, b) => sum + (b.totalAmount || 0), 0);
-    const platformRevenue = bookings.reduce((sum, b) => sum + (b.platformFee || 0), 0);
-    const caregiverPayout = bookings.reduce((sum, b) => sum + (b.caregiverEarning || 0), 0);
+    // 🟢 Paid logic (Money currently in the system)
+    const paidBookings = allFinancialBookings.filter(b => b.paymentStatus === "Paid");
+    const totalRevenue = paidBookings.reduce((sum, b) => sum + (b.totalAmount || 0), 0);
+    const platformRevenue = paidBookings.reduce((sum, b) => sum + (b.platformFee || 0), 0);
+    const caregiverPayout = paidBookings.reduce((sum, b) => sum + (b.caregiverEarning || 0), 0);
+
+    // 🔴 Refunded logic (Money sent back due to Adoptions)
+    const refundedBookings = allFinancialBookings.filter(b => b.paymentStatus === "Refunded");
+    const totalRefunded = refundedBookings.reduce((sum, b) => sum + (b.totalAmount || 0), 0);
 
     res.json({
-      totalBookings: bookings.length,
+      totalBookings: paidBookings.length,
       totalRevenue,
       platformRevenue,
-      caregiverPayout
+      caregiverPayout,
+      totalRefunded // 🔥 Added this so your Dashboard can display it
     });
 
   } catch (err) {
@@ -27,7 +37,8 @@ router.get("/revenue", async (req, res) => {
   }
 });
 
-//  NEW
+// NEW
 router.get("/caregivers", protect, getCaregivers);
 router.patch("/caregivers/:id/status", protect, toggleCaregiverStatus);
+
 module.exports = router;

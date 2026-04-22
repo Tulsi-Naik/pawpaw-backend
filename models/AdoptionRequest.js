@@ -17,7 +17,7 @@ const adoptionRequestSchema = new mongoose.Schema({
 
   status: {
     type: String,
-    enum: ["pending", "approved", "rejected"],
+    enum: ["pending", "approved", "rejected", "completed"],
     default: "pending"
   }
 
