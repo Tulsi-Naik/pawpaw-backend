@@ -39,6 +39,44 @@ mongoose.connect(process.env.MONGO_URI)
   .then(() => console.log("MongoDB connected"))
   .catch((err) => console.log(err));
 
-app.listen(5000, () => {
-  console.log("Server running on port 5000");
+const http = require("http");
+const { Server } = require("socket.io");
+
+const server = http.createServer(app);
+
+const io = new Server(server, {
+  cors: {
+    origin: "*", // later we can restrict to your frontend URL
+    methods: ["GET", "POST"]
+  }
+});
+
+// SOCKET CONNECTION
+io.on("connection", (socket) => {
+  console.log("User connected:", socket.id);
+
+  // join booking room
+  socket.on("join-booking", (bookingId) => {
+    socket.join(bookingId);
+    console.log(`Socket ${socket.id} joined booking ${bookingId}`);
+  });
+
+  // receive location from caregiver
+  socket.on("send-location", ({ bookingId, lat, lng }) => {
+    socket.to(bookingId).emit("receive-location", {
+      lat,
+      lng
+    });
+  });
+
+  socket.on("disconnect", () => {
+    console.log("User disconnected:", socket.id);
+  });
+});
+
+// IMPORTANT FOR RENDER
+const PORT = process.env.PORT || 5000;
+
+server.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
 });

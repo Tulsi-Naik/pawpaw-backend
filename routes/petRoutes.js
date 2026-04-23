@@ -29,7 +29,7 @@ const {
   name,
   type,
   breed,
-  size,
+ size: size || "Medium",
   dateOfBirth: dateOfBirth || null,
   energyLevel,
   friendliness,
