@@ -11,6 +11,7 @@ const {
   name,
   type,
   breed,
+  size,
   dateOfBirth,
   energyLevel,
   friendliness,
@@ -28,7 +29,8 @@ const {
   name,
   type,
   breed,
-  dateOfBirth,
+  size,
+  dateOfBirth: dateOfBirth || null,
   energyLevel,
   friendliness,
   anxietyLevel,
@@ -37,7 +39,11 @@ const {
   kidFriendly,
   allergies,
   medicalNotes,
-fears: fears ? JSON.parse(fears) : [],
+fears: req.body.fears
+  ? (typeof req.body.fears === "string"
+      ? JSON.parse(req.body.fears)
+      : req.body.fears)
+  : [],
     favoriteTreat,
   profilePhoto: req.file?.path,
   owner: req.user.id
@@ -61,30 +67,33 @@ router.get("/my", protect, async (req, res) => {
     res.status(500).json({ message: "Error fetching pets" });
   }
 });
-router.put("/:id", protect, upload.single("profilePhoto"), async (req, res) => {
+router.put("/:id", protect, async (req, res) => {
   try {
+    console.log("BODY:", req.body);
 
-    const updateData = {
-      ...req.body,
-      fears: req.body.fears ? JSON.parse(req.body.fears) : []
-    }
+    const updateData = { ...req.body };
 
-    if (req.file) {
-      updateData.profilePhoto = req.file.path
+    // ✅ FIX: handle fears correctly (string OR array)
+    if (req.body.fears) {
+      updateData.fears =
+        typeof req.body.fears === "string"
+          ? JSON.parse(req.body.fears)
+          : req.body.fears;
     }
 
     const updatedPet = await Pet.findOneAndUpdate(
       { _id: req.params.id, owner: req.user.id },
       updateData,
-      { returnDocument: "after" }
-    )
+      { returnDocument: "after" } // ✅ correct mongoose option
+    );
 
-    res.json(updatedPet)
+    res.json(updatedPet);
 
   } catch (error) {
-    res.status(500).json({ message: "Error updating pet" })
+    console.log("ERROR:", error); // 🔥 will show exact issue if any
+    res.status(500).json({ message: error.message });
   }
-})
+});
 router.delete("/:id", protect, async (req, res) => {
   await Pet.findOneAndDelete({
     _id: req.params.id,

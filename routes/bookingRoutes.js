@@ -437,4 +437,23 @@ router.get("/caregiver", protect, async (req, res) => {
   }
 });
 
+// POST /api/bookings/:id/rate
+router.post("/:id/rate", async (req, res) => {
+  try {
+    const { rating, review } = req.body;
+    const booking = await Booking.findByIdAndUpdate(
+      req.params.id,
+      { 
+        rating, 
+        review, 
+        isRated: true 
+      },
+      { new: true }
+    );
+    res.json({ message: "Rating submitted successfully", booking });
+  } catch (error) {
+    res.status(500).json({ message: "Error submitting rating" });
+  }
+});
+
 module.exports = router;

@@ -6,7 +6,11 @@ const petSchema = new mongoose.Schema({
 
   type: { type: String, required: true },
 
-  breed: String,
+  breed: { 
+    type: String, 
+    index: true, // Makes searching/grouping by breed much faster
+    default: "Mixed Breed" 
+  },
 
   size: {
   type: String,

@@ -21,11 +21,12 @@ router.get("/me", protect, async (req, res) => {
 // 🔥 UPDATE PROFILE (FINAL FIX)
 router.put("/update", protect, upload.single("profilePhoto"), async (req, res) => {
   try {
-    const { phone, city, hasDog, bio } = req.body
+    const { phone, city, address, hasDog, bio } = req.body
 
     let updateData = {
       phone,
       city,
+      address,
       hasDog,
       bio
     }

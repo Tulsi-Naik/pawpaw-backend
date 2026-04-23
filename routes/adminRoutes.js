@@ -41,4 +41,29 @@ router.get("/revenue", async (req, res) => {
 router.get("/caregivers", protect, getCaregivers);
 router.patch("/caregivers/:id/status", protect, toggleCaregiverStatus);
 
+// Breed Analytics
+const Pet = require("../models/Pet")
+
+router.get("/breed-stats", async (req, res) => {
+  try {
+
+    const breedStats = await Pet.aggregate([
+      {
+        $group: {
+          _id: "$breed",
+          count: { $sum: 1 }
+        }
+      },
+      {
+        $sort: { count: -1 }
+      }
+    ])
+
+    res.json(breedStats)
+
+  } catch (err) {
+    res.status(500).json({ message: "Error fetching breed stats" })
+  }
+})
+
 module.exports = router;

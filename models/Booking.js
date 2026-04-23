@@ -68,6 +68,22 @@ caregiverEarning: Number,   // 80%
 razorpayOrderId: String,
 razorpayPaymentId: String,
 
+// Add this to your bookingSchema in models/Booking.js
+  rating: { 
+    type: Number, 
+    min: 1, 
+    max: 5,
+    default: null 
+  },
+  review: { 
+    type: String, 
+    default: "" 
+  },
+  isRated: { 
+    type: Boolean, 
+    default: false 
+  },
+
 }, { timestamps: true });
 bookingSchema.index({ date: 1, timeSlot: 1 });
 
