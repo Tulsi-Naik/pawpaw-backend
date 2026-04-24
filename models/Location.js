@@ -1,5 +1,5 @@
 const mongoose = require("mongoose")
-
+//working on loaction
 const locationSchema = new mongoose.Schema({
 
   booking: {
