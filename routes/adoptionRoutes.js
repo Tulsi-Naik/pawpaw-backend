@@ -9,6 +9,7 @@ const mongoose = require("mongoose");
 const AdoptionListing = require("../models/AdoptionListing");
 const AdoptionRequest = require("../models/AdoptionRequest");
 const Pet = require("../models/Pet");
+const Booking = require("../models/Booking");
 
 
 // 🔹 1. CREATE LISTING
@@ -268,10 +269,25 @@ router.put("/finalize/:id", protect, async (req, res) => {
       return res.status(400).json({ message: "Request must be approved by owner first" });
     }
 
+    // Keep existing bookings attached to the owner who created them before
+    // changing Pet.owner, so the adopter does not inherit old booking history.
+    await Booking.updateMany(
+      {
+        pet: request.listing.pet,
+        owner: { $exists: false }
+      },
+      { owner: request.listing.owner },
+      { session }
+    );
+
     // 1. Officially change the Pet's owner to the Adopter
     await Pet.findByIdAndUpdate(
       request.listing.pet,
-      { owner: req.user.id },
+      {
+        owner: req.user.id,
+        lastAdoptionDate: new Date(),
+        $addToSet: { previousOwners: request.listing.owner }
+      },
       { session }
     );
 
@@ -287,7 +303,6 @@ router.put("/finalize/:id", protect, async (req, res) => {
     );
 
     // 4. FIND FUTURE PAID BOOKINGS FOR REFUND
-    const Booking = require("../models/Booking");
     const razorpay = require("../utils/razorpay"); // Ensure this path is correct
 
     const futurePaidBookings = await Booking.find({

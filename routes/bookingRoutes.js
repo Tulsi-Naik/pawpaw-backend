@@ -34,6 +34,7 @@ router.post("/create", protect, async (req, res) => {
       for (let slot of timeSlots) {
         bookingsToCreate.push({
           pet: petId,
+          owner: req.user.id,
           service: serviceId,
           date: startDate,
           timeSlot: slot,
@@ -64,6 +65,7 @@ router.post("/create", protect, async (req, res) => {
           for (let slot of timeSlots) {
             bookingsToCreate.push({
               pet: petId,
+              owner: req.user.id,
               service: serviceId,
               date: bookingDate,
               timeSlot: slot,
@@ -136,11 +138,20 @@ for (let existing of existingBookings) {
 
 router.get("/my", protect, async (req, res) => {
   try {
-    const pets = await Pet.find({ owner: req.user.id }).select("_id");
+    const pets = await Pet.find({ owner: req.user.id }).select("_id lastAdoptionDate");
 
-    const petIds = pets.map(p => p._id);
+    const legacyBookingFilters = pets.map(pet => ({
+      pet: pet._id,
+      owner: { $exists: false },
+      ...(pet.lastAdoptionDate ? { createdAt: { $gte: pet.lastAdoptionDate } } : {})
+    }));
 
-    const bookings = await Booking.find({ pet: { $in: petIds } })
+    const bookings = await Booking.find({
+      $or: [
+        { owner: req.user.id },
+        ...legacyBookingFilters
+      ]
+    })
       .populate({
   path: "pet",
   populate: {
