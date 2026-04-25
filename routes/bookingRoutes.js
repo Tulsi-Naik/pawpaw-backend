@@ -145,7 +145,7 @@ router.get("/my", protect, async (req, res) => {
   path: "pet",
   populate: {
     path: "owner",
-    select: "city phone"
+    select: "city phone address"
   }
 })  
 .populate("caregiver", "name phone profilePhoto")
@@ -196,7 +196,7 @@ const bookings = await Booking.find({ status: "Pending" })
     path: "pet",
     populate: {
       path: "owner",
-      select: "city phone"
+      select: "city phone address"
     }
   })
   .populate("service")
@@ -379,7 +379,7 @@ router.get("/my-assignments", protect, async (req, res) => {
         path: "pet",
         populate: {
           path: "owner",
-          select: "city phone"
+          select: "city phone address"
         }
       })
       .populate("service")
