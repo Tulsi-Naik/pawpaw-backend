@@ -14,6 +14,7 @@ const adminRoutes = require("./routes/adminRoutes");
 const paymentRoutes = require("./routes/paymentRoutes");
 const adoptionRoutes = require("./routes/adoptionRoutes");
 const blogRoutes = require("./routes/blogRoutes");
+const contactRoutes = require("./routes/contactRoutes");
 require("./utils/reminderJob")
 const app = express();
 
@@ -31,6 +32,7 @@ app.use("/api/applications", applicationRoutes);
 app.use("/api/payment", paymentRoutes);
 app.use("/api/adoption", adoptionRoutes);
 app.use("/api/blogs", blogRoutes);
+app.use("/api/contact", contactRoutes);
  app.get("/", (req, res) => {
   res.send("PawPaw backend running 🐾");
 });
